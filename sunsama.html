@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sunsama — Planejador Diário</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#4f7fff;--green:#2db96a;--amber:#f59e0b;--red:#e24b4a;
+  --bg:#ffffff;--bg2:#f7f7f5;--bg3:#f0efec;
+  --text:#1a1a1a;--text2:#6b6b6b;--text3:#9a9a9a;
+  --border:rgba(0,0,0,0.10);--border2:rgba(0,0,0,0.18);
+  --radius:8px;--radius-lg:12px;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#1c1c1e;--bg2:#2c2c2e;--bg3:#3a3a3c;
+  --text:#f5f5f5;--text2:#ababab;--text3:#6b6b6b;
+  --border:rgba(255,255,255,0.10);--border2:rgba(255,255,255,0.18);
+}}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg3);color:var(--text);height:100vh;overflow:hidden}
+.app{display:flex;height:100vh;overflow:hidden}
+
+/* LOADER */
+.loader{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:999;font-size:14px;color:var(--text2)}
+.loader-spinner{width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{position:fixed;bottom:20px;right:20px;background:#222;color:#fff;padding:10px 16px;border-radius:var(--radius);font-size:13px;z-index:998;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+
+/* SIDEBAR */
+.sidebar{width:220px;min-width:220px;background:var(--bg2);border-right:0.5px solid var(--border);display:flex;flex-direction:column;padding:12px 0}
+.sidebar-logo{padding:10px 16px 16px;font-size:16px;font-weight:600;letter-spacing:-.4px}
+.sidebar-logo span{opacity:.3;font-weight:400}
+.day-nav{padding:0 8px;margin-bottom:8px}
+.day-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:var(--radius);cursor:pointer;font-size:13px;color:var(--text2);transition:background .12s;user-select:none}
+.day-item:hover{background:var(--bg)}
+.day-item.active{background:var(--bg);color:var(--text);font-weight:500}
+.day-dot{width:7px;height:7px;border-radius:50%;background:var(--border2);flex-shrink:0}
+.day-item.active .day-dot{background:var(--blue)}
+.day-count{margin-left:auto;font-size:10px;background:var(--bg3);border-radius:10px;padding:1px 6px;color:var(--text3)}
+.today-badge{font-size:7px;color:var(--blue);margin-left:auto}
+.sb-section{padding:0 8px;margin-top:12px}
+.sb-label{font-size:10px;color:var(--text3);padding:4px 8px;letter-spacing:.6px;text-transform:uppercase;font-weight:500}
+.sb-btn{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:var(--radius);cursor:pointer;font-size:13px;color:var(--text2);transition:background .12s;width:100%;border:none;background:transparent;text-align:left}
+.sb-btn:hover{background:var(--bg);color:var(--text)}
+.sb-btn i{font-size:14px;opacity:.6}
+.sb-footer{margin-top:auto;padding:8px;display:flex;flex-direction:column;gap:6px}
+.ritual-btn{width:100%;padding:8px 12px;border:none;border-radius:var(--radius);font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:opacity .15s}
+.ritual-btn:hover{opacity:.85}
+
+/* MAIN */
+.main{flex:1;display:flex;overflow:hidden}
+
+/* TASK PANEL */
+.task-panel{width:300px;min-width:260px;border-right:0.5px solid var(--border);display:flex;flex-direction:column;background:var(--bg)}
+.ph{padding:14px 14px 10px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.ph-title{font-size:15px;font-weight:600}
+.ph-date{font-size:11px;color:var(--text3);margin-top:2px}
+.ph-actions{display:flex;gap:4px}
+.ib{width:28px;height:28px;border-radius:6px;border:0.5px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:13px;transition:background .12s}
+.ib:hover{background:var(--bg2)}
+.time-goal{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:0.5px solid var(--border);background:var(--bg2)}
+.tg-label{font-size:11px;color:var(--text2);white-space:nowrap}
+.tg-bar{flex:1;height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+.tg-fill{height:100%;border-radius:2px;transition:width .4s,background .4s}
+.tg-val{font-size:11px;font-weight:500;min-width:52px;text-align:right;white-space:nowrap}
+.tasks-list{flex:1;overflow-y:auto;padding:6px}
+.ch-group{margin-bottom:4px}
+.ch-header{display:flex;align-items:center;gap:6px;padding:5px 7px;cursor:pointer;border-radius:var(--radius);transition:background .12s}
+.ch-header:hover{background:var(--bg2)}
+.ch-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.ch-name{font-size:11px;font-weight:500;color:var(--text2)}
+.ch-count{margin-left:auto;font-size:10px;color:var(--text3)}
+.ch-tasks{padding-left:6px}
+.task-item{display:flex;align-items:flex-start;gap:8px;padding:6px 7px;border-radius:var(--radius);cursor:pointer;transition:background .12s}
+.task-item:hover{background:var(--bg2)}
+.task-item.sel{background:rgba(79,127,255,.08)}
+.t-check{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--border2);flex-shrink:0;margin-top:1px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:9px;transition:all .15s}
+.t-check.done{background:var(--blue);border-color:var(--blue);color:#fff}
+.t-text{flex:1;min-width:0}
+.t-name{font-size:13px;line-height:1.35;color:var(--text)}
+.t-name.done{text-decoration:line-through;color:var(--text3)}
+.t-meta{display:flex;align-items:center;gap:5px;margin-top:3px;flex-wrap:wrap}
+.t-time{font-size:10px;color:var(--text3);display:flex;align-items:center;gap:2px}
+.t-drag{font-size:11px;color:var(--text3);opacity:0;transition:opacity .12s}
+.task-item:hover .t-drag{opacity:1}
+.add-btn{display:flex;align-items:center;gap:6px;padding:10px 14px;color:var(--text3);font-size:13px;cursor:pointer;border-top:0.5px solid var(--border);transition:color .12s}
+.add-btn:hover{color:var(--text)}
+.add-input{width:100%;padding:10px 14px;border:none;border-top:0.5px solid var(--border);background:transparent;font-size:13px;color:var(--text);outline:none;font-family:inherit}
+.add-input::placeholder{color:var(--text3)}
+.hidden{display:none!important}
+
+/* CALENDAR */
+.cal-panel{flex:1;display:flex;flex-direction:column;background:var(--bg);overflow:hidden}
+.cal-header{padding:10px 14px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:10px}
+.cal-nav{display:flex;gap:4px}
+.cal-nav button{width:28px;height:28px;border:0.5px solid var(--border);background:transparent;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:13px;transition:background .12s}
+.cal-nav button:hover{background:var(--bg2)}
+.cal-title{font-size:13px;font-weight:600;flex:1}
+.today-btn{font-size:11px;padding:4px 9px;border:0.5px solid var(--border);border-radius:6px;background:transparent;cursor:pointer;color:var(--text2);transition:background .12s}
+.today-btn:hover{background:var(--bg2)}
+.cal-view{display:flex;border:0.5px solid var(--border);border-radius:6px;overflow:hidden}
+.cv-btn{padding:4px 10px;font-size:11px;background:transparent;border:none;cursor:pointer;color:var(--text2);transition:background .12s}
+.cv-btn.active{background:var(--bg2);color:var(--text);font-weight:500}
+.cal-days-hdr{display:grid;grid-template-columns:44px repeat(7,1fr);border-bottom:0.5px solid var(--border);background:var(--bg2)}
+.cdh{padding:8px 3px;text-align:center;cursor:pointer}
+.cdd{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px}
+.cdn{font-size:17px;font-weight:400;line-height:1.3;color:var(--text2);transition:color .12s}
+.cdn.today{color:#fff;background:var(--blue);width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:14px}
+.cdn.sel-day{color:var(--blue);font-weight:500}
+.cdt{font-size:9px;color:var(--text3);margin-top:2px;min-height:12px}
+.cal-body{flex:1;overflow-y:auto;display:grid;grid-template-columns:44px repeat(7,1fr)}
+.time-col{display:flex;flex-direction:column}
+.tsl{height:48px;font-size:9px;color:var(--text3);padding:0 4px;text-align:right;border-right:0.5px solid var(--border);display:flex;align-items:flex-start;justify-content:flex-end;padding-top:2px}
+.cal-col{display:flex;flex-direction:column;border-right:0.5px solid var(--border);position:relative;min-height:576px}
+.cal-cell{height:48px;border-bottom:0.5px solid var(--border);position:relative;cursor:pointer;transition:background .1s}
+.cal-cell:hover{background:rgba(79,127,255,.04)}
+.cal-ev{position:absolute;left:2px;right:2px;border-radius:4px;padding:3px 5px;font-size:10px;cursor:pointer;z-index:1;overflow:hidden;line-height:1.3}
+.cal-ev:hover{opacity:.82}
+.cal-ev-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-ev-time{font-size:9px;opacity:.7}
+.now-line{position:absolute;left:0;right:0;height:1.5px;background:var(--red);z-index:2;pointer-events:none}
+.now-dot{position:absolute;left:-4px;top:-4px;width:8px;height:8px;background:var(--red);border-radius:50%}
+
+/* DETAIL PANEL */
+.detail-panel{width:270px;min-width:270px;border-left:0.5px solid var(--border);background:var(--bg);display:flex;flex-direction:column}
+.dp-header{padding:13px 14px 10px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.dp-title{font-size:13px;font-weight:600}
+.dp-body{flex:1;overflow-y:auto;padding:14px}
+.df{margin-bottom:14px}
+.dl{font-size:10px;color:var(--text3);margin-bottom:5px;letter-spacing:.4px;text-transform:uppercase;font-weight:500}
+.di{width:100%;padding:6px 8px;border:0.5px solid var(--border);border-radius:6px;background:transparent;font-size:13px;color:var(--text);font-family:inherit;outline:none;transition:border-color .15s}
+.di:focus{border-color:var(--blue)}
+.dta{width:100%;padding:6px 8px;border:0.5px solid var(--border);border-radius:6px;background:transparent;font-size:13px;color:var(--text);font-family:inherit;outline:none;resize:none;line-height:1.5;min-height:72px;transition:border-color .15s}
+.dta:focus{border-color:var(--blue)}
+.te{display:flex;gap:5px;flex-wrap:wrap}
+.tc{padding:3px 9px;border:0.5px solid var(--border);border-radius:10px;font-size:11px;cursor:pointer;background:transparent;color:var(--text2);transition:all .15s}
+.tc:hover,.tc.active{background:var(--blue);border-color:var(--blue);color:#fff}
+.schip{padding:4px 9px;border:0.5px solid var(--border);border-radius:10px;font-size:11px;cursor:pointer;background:transparent;color:var(--text2);transition:all .15s}
+.schip.done-chip{background:#e7f5ed;border-color:var(--green);color:#1a6b3a}
+.schip.roll{background:#fef3e7;border-color:var(--amber);color:#8b4c00}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px}
+.modal{background:var(--bg);border-radius:var(--radius-lg);width:100%;max-width:500px;max-height:82vh;display:flex;flex-direction:column;border:0.5px solid var(--border);box-shadow:0 8px 40px rgba(0,0,0,.15)}
+.mh{padding:20px 24px 14px;border-bottom:0.5px solid var(--border)}
+.mt{font-size:16px;font-weight:600;margin-bottom:3px}
+.ms{font-size:13px;color:var(--text2);line-height:1.4}
+.prog{display:flex;gap:4px;margin-top:12px}
+.pd{height:3px;flex:1;border-radius:2px;background:var(--border);transition:background .3s}
+.pd.done{background:var(--blue)}
+.mb{flex:1;overflow-y:auto;padding:20px 24px}
+.mf{padding:14px 24px;border-top:0.5px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+.rst{display:flex;gap:12px;margin-bottom:12px;padding:12px;border-radius:var(--radius);border:0.5px solid var(--border);background:var(--bg2);align-items:flex-start;cursor:pointer;transition:border-color .15s}
+.rst:hover,.rst.active{border-color:var(--blue)}
+.rsi{width:32px;height:32px;border-radius:8px;background:rgba(79,127,255,.12);display:flex;align-items:center;justify-content:center;color:var(--blue);font-size:16px;flex-shrink:0}
+.rsc{flex:1}
+.rst-t{font-size:13px;font-weight:500;margin-bottom:2px}
+.rst-d{font-size:12px;color:var(--text2);line-height:1.4}
+.rst-ck{width:18px;height:18px;border-radius:4px;border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:5px;transition:all .15s;font-size:10px}
+.rst-ck.done{background:var(--blue);border-color:var(--blue);color:#fff}
+.refl{padding:12px;border-radius:var(--radius);border:0.5px solid var(--border);background:var(--bg2);margin-bottom:10px}
+.rq{font-size:13px;color:var(--text2);margin-bottom:8px}
+.stars{display:flex;gap:8px}
+.star{font-size:24px;cursor:pointer;transition:transform .15s;opacity:.3}
+.star:hover,.star.active{opacity:1;transform:scale(1.1)}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+</style>
+</head>
+<body>
+
+<div class="loader" id="loader">
+  <div class="loader-spinner"></div>
+  <span>Carregando seus dados...</span>
+</div>
+<div class="toast" id="toast"></div>
+
+<div class="app" id="app" style="opacity:0;transition:opacity .4s">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-logo">Sunsama<span> ·</span></div>
+    <div class="day-nav" id="dayNav"></div>
+    <div class="sb-section">
+      <div class="sb-label">Canais</div>
+      <div id="channelList"></div>
+    </div>
+    <div class="sb-section">
+      <div class="sb-label">Ferramentas</div>
+      <button class="sb-btn"><i class="ti ti-target"></i> Objetivos</button>
+      <button class="sb-btn"><i class="ti ti-list"></i> Backlog</button>
+      <button class="sb-btn"><i class="ti ti-chart-bar"></i> Relatórios</button>
+    </div>
+    <div class="sb-footer">
+      <button class="ritual-btn" style="background:var(--blue);color:#fff" onclick="openRitual('plan')">
+        <i class="ti ti-sun"></i> Planejar o dia
+      </button>
+      <button class="ritual-btn" style="background:#555;color:#fff" onclick="openRitual('shutdown')">
+        <i class="ti ti-moon"></i> Encerrar o dia
+      </button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- TASK PANEL -->
+    <div class="task-panel">
+      <div class="ph">
+        <div>
+          <div class="ph-title" id="panelTitle">Hoje</div>
+          <div class="ph-date" id="panelDate"></div>
+        </div>
+        <div class="ph-actions">
+          <button class="ib" title="Ordenar (feitas por último)" onclick="sortTasks()"><i class="ti ti-arrows-sort"></i></button>
+          <button class="ib" title="Recarregar do banco" onclick="loadData()"><i class="ti ti-refresh"></i></button>
+        </div>
+      </div>
+      <div class="time-goal">
+        <span class="tg-label"><i class="ti ti-clock" style="font-size:11px;vertical-align:-1px;margin-right:2px"></i> Meta diária</span>
+        <div class="tg-bar"><div class="tg-fill" id="tgFill" style="width:0%"></div></div>
+        <span class="tg-val" id="tgVal">0 / 6h</span>
+      </div>
+      <div class="tasks-list" id="tasksList"></div>
+      <div class="add-btn" id="addBtn" onclick="startAdd()">
+        <i class="ti ti-plus"></i> Adicionar tarefa
+      </div>
+      <input class="add-input hidden" id="addInput" placeholder="Nome da tarefa... (Enter para salvar)" />
+    </div>
+
+    <!-- CALENDAR -->
+    <div class="cal-panel">
+      <div class="cal-header">
+        <div class="cal-nav">
+          <button onclick="navWeek(-1)"><i class="ti ti-chevron-left"></i></button>
+          <button onclick="navWeek(1)"><i class="ti ti-chevron-right"></i></button>
+        </div>
+        <div class="cal-title" id="calTitle"></div>
+        <button class="today-btn" onclick="goToday()">Hoje</button>
+        <div class="cal-view">
+          <button class="cv-btn active">Semana</button>
+          <button class="cv-btn">Dia</button>
+        </div>
+      </div>
+      <div class="cal-days-hdr" id="calHdr"><div></div></div>
+      <div class="cal-body" id="calBody"></div>
+    </div>
+
+    <!-- DETAIL PANEL -->
+    <div class="detail-panel" id="detailPanel" style="display:none">
+      <div class="dp-header">
+        <div class="dp-title">Detalhes</div>
+        <button class="ib" onclick="closeDetail()"><i class="ti ti-x"></i></button>
+      </div>
+      <div class="dp-body" id="dpBody"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- RITUAL MODAL -->
+<div class="modal-overlay hidden" id="ritualOverlay">
+  <div class="modal">
+    <div class="mh">
+      <div class="mt" id="ritualTitle"></div>
+      <div class="ms" id="ritualSub"></div>
+      <div class="prog" id="ritualProg"></div>
+    </div>
+    <div class="mb" id="ritualBody"></div>
+    <div class="mf">
+      <button class="ib" style="width:auto;padding:0 14px;font-size:13px" onclick="closeRitual()">Cancelar</button>
+      <button style="padding:7px 18px;background:var(--blue);color:#fff;border:none;border-radius:var(--radius);font-size:13px;font-weight:500;cursor:pointer" onclick="closeRitual()">Concluir</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG SUPABASE ─────────────────────────────────────────────
+const SB_URL = 'https://ypbzdtmnsrzjeyuddzwx.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlwYnpkdG1uc3J6amV5dWRkend4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NzI3OTksImV4cCI6MjA5NjI0ODc5OX0.bVBFCTITDFIFTaHHgcP0iG8UEnq_MaMfv7xVJBKLV-c';
+const H = {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=representation'};
+
+// ── CONSTANTES ──────────────────────────────────────────────────
+const DAYS   = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+const DAYS_F = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+// ── ESTADO ──────────────────────────────────────────────────────
+let today    = new Date();
+let selDay   = today.getDay() === 0 ? 6 : today.getDay() - 1; // 0=Seg
+let weekOff  = 0;
+let selTask  = null;
+let channels = [];
+let tasks    = [];
+let checkedSteps = [];
+let rating   = 0;
+let ritualType = null;
+
+// ── SUPABASE HELPER ─────────────────────────────────────────────
+async function sb(path, method = 'GET', body = null) {
+  const opts = { method, headers: { ...H } };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(SB_URL + '/rest/v1/' + path, opts);
+  if (r.status === 204 || method === 'DELETE') return null;
+  const data = await r.json();
+  if (!r.ok) throw new Error(JSON.stringify(data));
+  return data;
+}
+
+// ── TOAST ────────────────────────────────────────────────────────
+function toast(msg, dur = 2500) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), dur);
+}
+
+// ── CARREGAR DADOS ──────────────────────────────────────────────
+async function loadData() {
+  try {
+    channels = await sb('canais?select=*&order=criado_em');
+    const raw = await sb('tarefas?select=*,canais(*)&order=criado_em');
+    tasks = raw.map(t => ({
+      id: t.id, nome: t.nome, canal_id: t.canal_id, canal: t.canais,
+      feita: t.feita, estimativa: t.estimativa_min, notas: t.notas || '',
+      dia: t.dia_semana, hora: t.hora_agendada, min: t.minuto_agendado || 0,
+      dur: t.duracao_min, data: t.data_referencia
+    }));
+    document.getElementById('loader').style.display = 'none';
+    document.getElementById('app').style.opacity = '1';
+    refresh();
+  } catch (e) {
+    document.getElementById('loader').innerHTML =
+      `<span style="color:var(--red);text-align:center">Erro ao carregar dados.<br><small style="opacity:.6">${e.message}</small></span>`;
+  }
+}
+
+// ── CRUD TAREFAS ─────────────────────────────────────────────────
+async function createTask(nome) {
+  const first = channels[0];
+  try {
+    const rows = await sb('tarefas', 'POST', {
+      nome, canal_id: first?.id || null, feita: false, estimativa_min: 30, notas: '',
+      dia_semana: null, data_referencia: today.toISOString().split('T')[0]
+    });
+    const id = rows[0].id;
+    const [row] = await sb(`tarefas?select=*,canais(*)&id=eq.${id}`);
+    tasks.push({
+      id: row.id, nome: row.nome, canal_id: row.canal_id, canal: row.canais,
+      feita: row.feita, estimativa: row.estimativa_min, notas: row.notas || '',
+      dia: row.dia_semana, hora: row.hora_agendada, min: row.minuto_agendado || 0,
+      dur: row.duracao_min, data: row.data_referencia
+    });
+    toast('✓ Tarefa criada');
+    refresh();
+  } catch (e) { toast('Erro ao criar tarefa'); console.error(e); }
+}
+
+async function updateTask(id, patch) {
+  const map = { nome:'nome', feita:'feita', estimativa:'estimativa_min', notas:'notas',
+    canal_id:'canal_id', dia:'dia_semana', hora:'hora_agendada', min:'minuto_agendado', dur:'duracao_min' };
+  const dbPatch = { atualizado_em: new Date().toISOString() };
+  for (const k in patch) if (map[k]) dbPatch[map[k]] = patch[k];
+  try {
+    await sb(`tarefas?id=eq.${id}`, 'PATCH', dbPatch);
+    const t = tasks.find(t => t.id === id);
+    if (t) Object.assign(t, patch);
+    refresh();
+  } catch (e) { toast('Erro ao salvar'); console.error(e); }
+}
+
+async function deleteTask(id) {
+  try {
+    await sb(`tarefas?id=eq.${id}`, 'DELETE');
+    tasks = tasks.filter(t => t.id !== id);
+    selTask = null;
+    document.getElementById('detailPanel').style.display = 'none';
+    toast('Tarefa excluída');
+    refresh();
+  } catch (e) { toast('Erro ao excluir'); }
+}
+
+// ── SEMANA ────────────────────────────────────────────────────────
+function getWeek() {
+  const d = new Date(today);
+  const dow = d.getDay();
+  const mon = new Date(d);
+  mon.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1) + weekOff * 7);
+  return Array.from({ length: 7 }, (_, i) => {
+    const dd = new Date(mon); dd.setDate(mon.getDate() + i); return dd;
+  });
+}
+
+function sameDay(a, b) {
+  return a.getDate() === b.getDate() && a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+}
+
+function getDayTasks(dayIdx) {
+  if (weekOff === 0) {
+    return tasks.filter(t => t.dia === dayIdx || (t.dia === null && dayIdx === selDay));
+  }
+  return tasks.filter(t => t.dia === dayIdx);
+}
+
+// ── SIDEBAR ───────────────────────────────────────────────────────
+function buildSidebar() {
+  const dates = getWeek();
+  const nav = document.getElementById('dayNav');
+  nav.innerHTML = '';
+  dates.forEach((d, i) => {
+    const cnt = getDayTasks(i).length;
+    const isToday = sameDay(d, today);
+    const el = document.createElement('div');
+    el.className = 'day-item' + (i === selDay ? ' active' : '');
+    el.innerHTML = `<div class="day-dot"></div><span>${DAYS[d.getDay()]} ${d.getDate()}</span>` +
+      (cnt ? `<span class="day-count">${cnt}</span>` : '') +
+      (isToday ? `<i class="ti ti-point-filled" style="font-size:7px;color:var(--blue);margin-left:${cnt?'4px':'auto'}"></i>` : '');
+    el.onclick = () => { selDay = i; refresh(); };
+    nav.appendChild(el);
+  });
+
+  const cl = document.getElementById('channelList');
+  cl.innerHTML = '';
+  channels.forEach(ch => {
+    const el = document.createElement('button');
+    el.className = 'sb-btn';
+    el.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:${ch.cor};display:inline-block;flex-shrink:0"></span>${ch.nome}`;
+    cl.appendChild(el);
+  });
+}
+
+// ── TASK PANEL ────────────────────────────────────────────────────
+function buildTaskPanel() {
+  const dates = getWeek();
+  const d = dates[selDay];
+  document.getElementById('panelTitle').textContent = sameDay(d, today) ? 'Hoje' : DAYS_F[d.getDay()];
+  document.getElementById('panelDate').textContent = `${d.getDate()} de ${MONTHS[d.getMonth()]}`;
+
+  const show = getDayTasks(selDay);
+  const totalMin = show.filter(t => !t.feita).reduce((a, t) => a + (t.estimativa || 0), 0);
+  const pct = Math.min(110, Math.round(totalMin / 360 * 100));
+  const h = Math.floor(totalMin / 60), m = totalMin % 60;
+  document.getElementById('tgFill').style.width = Math.min(100, pct) + '%';
+  document.getElementById('tgFill').style.background = pct > 100 ? 'var(--red)' : 'var(--blue)';
+  document.getElementById('tgVal').textContent = `${h > 0 ? h + 'h' : ''}${m > 0 ? m + 'm' : h === 0 ? '0m' : ''} / 6h`;
+
+  const grouped = {};
+  channels.forEach(ch => { grouped[ch.id] = []; });
+  grouped['__none__'] = [];
+  show.forEach(t => {
+    if (t.canal_id && grouped[t.canal_id]) grouped[t.canal_id].push(t);
+    else grouped['__none__'].push(t);
+  });
+
+  const list = document.getElementById('tasksList');
+  list.innerHTML = '';
+
+  channels.forEach(ch => {
+    const items = grouped[ch.id] || [];
+    if (!items.length) return;
+    const grp = document.createElement('div');
+    grp.className = 'ch-group';
+    const hdrEl = document.createElement('div');
+    hdrEl.className = 'ch-header';
+    hdrEl.innerHTML = `<div class="ch-dot" style="background:${ch.cor}"></div><span class="ch-name">${ch.nome}</span><span class="ch-count">${items.length}</span>`;
+    grp.appendChild(hdrEl);
+    const ct = document.createElement('div');
+    ct.className = 'ch-tasks';
+    items.forEach(t => ct.appendChild(makeTaskEl(t)));
+    grp.appendChild(ct);
+    list.appendChild(grp);
+  });
+}
+
+function makeTaskEl(t) {
+  const item = document.createElement('div');
+  item.className = 'task-item' + (selTask && selTask.id === t.id ? ' sel' : '');
+  const hh = Math.floor((t.estimativa || 0) / 60), mm = (t.estimativa || 0) % 60;
+  const ts = t.estimativa ? `${hh > 0 ? hh + 'h' : ''}${mm > 0 ? mm + 'm' : ''}` : '';
+  item.innerHTML =
+    `<div class="t-check${t.feita ? ' done' : ''}" title="${t.feita ? 'Desmarcar' : 'Marcar como feita'}">${t.feita ? '✓' : ''}</div>` +
+    `<div class="t-text"><div class="t-name${t.feita ? ' done' : ''}">${t.nome}</div>` +
+    (ts || t.dia !== null
+      ? `<div class="t-meta">${ts ? `<span class="t-time"><i class="ti ti-clock"></i>${ts}</span>` : ''}${t.dia !== null ? `<span class="t-time"><i class="ti ti-calendar-event"></i>agendada</span>` : ''}</div>`
+      : '') +
+    `</div><i class="ti ti-grip-vertical t-drag"></i>`;
+  item.querySelector('.t-check').onclick = e => {
+    e.stopPropagation();
+    updateTask(t.id, { feita: !t.feita }).then(() => {
+      if (selTask && selTask.id === t.id) openDetail(tasks.find(x => x.id === t.id));
+    });
+  };
+  item.onclick = () => openDetail(t);
+  return item;
+}
+
+// ── CALENDÁRIO ────────────────────────────────────────────────────
+function buildCalendar() {
+  const dates = getWeek();
+  const f = dates[0], l = dates[6];
+  document.getElementById('calTitle').textContent =
+    f.getMonth() === l.getMonth()
+      ? `${MONTHS[f.getMonth()]} ${f.getFullYear()}`
+      : `${MONTHS[f.getMonth()].slice(0, 3)} — ${MONTHS[l.getMonth()].slice(0, 3)} ${l.getFullYear()}`;
+
+  const hdr = document.getElementById('calHdr');
+  hdr.innerHTML = '<div></div>';
+  dates.forEach((d, i) => {
+    const isToday = sameDay(d, today), isSel = i === selDay;
+    const cnt = tasks.filter(t => t.dia === i).length;
+    const div = document.createElement('div');
+    div.className = 'cdh';
+    div.onclick = () => { selDay = i; refresh(); };
+    div.innerHTML =
+      `<div class="cdd">${DAYS[d.getDay()]}</div>` +
+      `<div class="cdn${isToday ? ' today' : isSel ? ' sel-day' : ''}">${d.getDate()}</div>` +
+      `<div class="cdt">${cnt ? cnt + ' tarefa' + (cnt > 1 ? 's' : '') : ''}</div>`;
+    hdr.appendChild(div);
+  });
+
+  const body = document.getElementById('calBody');
+  body.innerHTML = '';
+  const hours = Array.from({ length: 13 }, (_, i) => i + 7);
+
+  const tc = document.createElement('div');
+  tc.className = 'time-col';
+  hours.forEach(h => {
+    const s = document.createElement('div');
+    s.className = 'tsl';
+    s.textContent = h + 'h';
+    tc.appendChild(s);
+  });
+  body.appendChild(tc);
+
+  const nowH = today.getHours(), nowM = today.getMinutes();
+  const nowPct = ((nowH - 7) * 60 + nowM) / (13 * 60);
+
+  dates.forEach((d, dayIdx) => {
+    const col = document.createElement('div');
+    col.className = 'cal-col';
+    if (dayIdx === selDay) col.style.background = 'rgba(79,127,255,.025)';
+
+    hours.forEach(h => {
+      const cell = document.createElement('div');
+      cell.className = 'cal-cell';
+      cell.onclick = () => { selDay = dayIdx; refresh(); };
+      col.appendChild(cell);
+    });
+
+    if (sameDay(d, today) && nowPct >= 0 && nowPct <= 1) {
+      const line = document.createElement('div');
+      line.className = 'now-line';
+      line.style.top = (nowPct * 100) + '%';
+      line.innerHTML = '<div class="now-dot"></div>';
+      col.appendChild(line);
+    }
+
+    tasks.filter(t => t.dia === dayIdx && t.hora !== null).forEach(t => {
+      const ch = channels.find(c => c.id === t.canal_id);
+      const cor = ch ? ch.cor : '#4f7fff';
+      const topP = ((t.hora - 7) * 60 + (t.min || 0)) / (13 * 60) * 100;
+      const hP = (t.dur || 30) / (13 * 60) * 100;
+      const ev = document.createElement('div');
+      ev.className = 'cal-ev';
+      ev.style.cssText = `top:${topP}%;height:${Math.max(hP, 2.5)}%;background:${cor}22;border-left:2px solid ${cor};color:${cor}`;
+      ev.innerHTML = `<div class="cal-ev-name">${t.nome}</div><div class="cal-ev-time">${t.hora}:${String(t.min || 0).padStart(2, '0')} · ${t.dur || 30}min</div>`;
+      ev.onclick = e => { e.stopPropagation(); openDetail(t); };
+      col.appendChild(ev);
+    });
+
+    body.appendChild(col);
+  });
+}
+
+// ── DETAIL PANEL ──────────────────────────────────────────────────
+function openDetail(task) {
+  selTask = task;
+  const ch = channels.find(c => c.id === task.canal_id);
+  const hh = Math.floor((task.estimativa || 0) / 60), mm = (task.estimativa || 0) % 60;
+  const db = document.getElementById('dpBody');
+
+  const scheduled = task.dia !== null && task.hora !== null;
+  const schedLabel = scheduled
+    ? `${DAYS_F[getWeek()[task.dia]?.getDay() ?? 0]}, ${task.hora}:${String(task.min || 0).padStart(2, '0')} · ${task.dur || 30}min`
+    : null;
+
+  db.innerHTML = `
+    <div class="df">
+      <div class="dl">Tarefa</div>
+      <input class="di" id="dn" value="${task.nome.replace(/"/g, '&quot;')}" />
+    </div>
+    <div class="df">
+      <div class="dl">Canal</div>
+      <select class="di" id="dch">
+        ${channels.map(c => `<option value="${c.id}"${c.id === task.canal_id ? ' selected' : ''}>${c.nome}</option>`).join('')}
+      </select>
+    </div>
+    <div class="df">
+      <div class="dl">Estimativa de tempo</div>
+      <div class="te">
+        ${[15, 30, 45, 60, 90, 120].map(v =>
+          `<button class="tc${task.estimativa === v ? ' active' : ''}" onclick="setEst('${task.id}',${v})">${v < 60 ? v + 'm' : v / 60 + 'h'}</button>`
+        ).join('')}
+      </div>
+      <div style="margin-top:5px;font-size:11px;color:var(--text3)">${hh > 0 ? hh + 'h ' : ''}${mm > 0 ? mm + 'min ' : ''}${!task.estimativa ? 'sem estimativa' : 'estimado'}</div>
+    </div>
+    <div class="df">
+      <div class="dl">Status</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="schip${task.feita ? ' done-chip' : ''}" onclick="toggleFeita('${task.id}')">${task.feita ? '✓ Feita' : 'Pendente'}</button>
+        <button class="schip roll" onclick="rollover('${task.id}')"><i class="ti ti-arrow-right"></i> Amanhã</button>
+      </div>
+    </div>
+    <div class="df">
+      <div class="dl">Notas</div>
+      <textarea class="dta" id="dn2" placeholder="Contexto, links, observações...">${task.notas || ''}</textarea>
+    </div>
+    <div class="df">
+      <div class="dl">Calendário</div>
+      ${scheduled
+        ? `<div style="font-size:12px;color:var(--text2);display:flex;align-items:center;gap:5px"><i class="ti ti-calendar-event"></i>${schedLabel}</div>
+           <button onclick="removeSchedule('${task.id}')" style="margin-top:6px;font-size:11px;color:var(--text3);background:transparent;border:none;cursor:pointer;padding:0">Remover do calendário</button>`
+        : `<button onclick="scheduleIt('${task.id}')" style="font-size:12px;padding:5px 10px;border:0.5px solid var(--border);border-radius:6px;background:transparent;cursor:pointer;color:var(--text2)"><i class="ti ti-plus"></i> Agendar</button>`
+      }
+    </div>
+    <button onclick="deleteTask('${task.id}')" style="margin-top:6px;font-size:12px;color:var(--red);background:transparent;border:none;cursor:pointer;display:flex;align-items:center;gap:4px">
+      <i class="ti ti-trash"></i> Excluir tarefa
+    </button>`;
+
+  document.getElementById('detailPanel').style.display = 'flex';
+
+  document.getElementById('dn').onblur = () => {
+    const v = document.getElementById('dn')?.value?.trim();
+    if (v && v !== task.nome) updateTask(task.id, { nome: v });
+  };
+  document.getElementById('dn2').onblur = () => {
+    const v = document.getElementById('dn2')?.value;
+    if (v !== undefined && v !== task.notas) updateTask(task.id, { notas: v });
+  };
+  document.getElementById('dch').onchange = () => {
+    const v = document.getElementById('dch')?.value;
+    if (v && v !== task.canal_id) updateTask(task.id, { canal_id: v });
+  };
+  refresh();
+}
+
+function closeDetail() {
+  selTask = null;
+  document.getElementById('detailPanel').style.display = 'none';
+  refresh();
+}
+
+async function toggleFeita(id) {
+  const t = tasks.find(t => t.id === id);
+  if (t) { await updateTask(id, { feita: !t.feita }); openDetail(tasks.find(x => x.id === id)); }
+}
+async function setEst(id, v) {
+  await updateTask(id, { estimativa: v });
+  openDetail(tasks.find(x => x.id === id));
+}
+async function rollover(id) {
+  const t = tasks.find(t => t.id === id);
+  if (t && t.dia !== null) await updateTask(id, { dia: Math.min(t.dia + 1, 6) });
+  else await updateTask(id, { dia: Math.min(selDay + 1, 6), hora: 9, min: 0, dur: t?.estimativa || 30 });
+  closeDetail();
+}
+async function scheduleIt(id) {
+  const t = tasks.find(t => t.id === id);
+  if (t) await updateTask(id, { dia: selDay, hora: 9, min: 0, dur: t.estimativa || 30 });
+  openDetail(tasks.find(x => x.id === id));
+}
+async function removeSchedule(id) {
+  await updateTask(id, { dia: null, hora: null, min: 0, dur: null });
+  openDetail(tasks.find(x => x.id === id));
+}
+
+// ── ADD TASK ──────────────────────────────────────────────────────
+function startAdd() {
+  const btn = document.getElementById('addBtn');
+  const inp = document.getElementById('addInput');
+  btn.classList.add('hidden');
+  inp.classList.remove('hidden');
+  inp.focus();
+  inp.onkeydown = async e => {
+    if (e.key === 'Enter') {
+      const v = inp.value.trim();
+      if (v) await createTask(v);
+      inp.value = '';
+      btn.classList.remove('hidden');
+      inp.classList.add('hidden');
+    }
+    if (e.key === 'Escape') {
+      inp.value = '';
+      btn.classList.remove('hidden');
+      inp.classList.add('hidden');
+    }
+  };
+}
+
+function sortTasks() {
+  tasks.sort((a, b) => a.feita === b.feita ? 0 : a.feita ? 1 : -1);
+  refresh();
+}
+function navWeek(d) { weekOff += d; refresh(); }
+function goToday() { weekOff = 0; selDay = today.getDay() === 0 ? 6 : today.getDay() - 1; refresh(); }
+
+// ── RITUAL ────────────────────────────────────────────────────────
+const planSteps = [
+  { icon: 'ti-sun', t: 'Começar com intenção', d: 'Como você quer se sentir ao final deste dia?' },
+  { icon: 'ti-list-check', t: 'Revisar pendências', d: 'O que ficou do dia anterior? Decida o que entra no plano de hoje.' },
+  { icon: 'ti-clock', t: 'Estimar o tempo', d: 'Para cada tarefa, defina quanto tempo você vai dedicar.' },
+  { icon: 'ti-calendar-event', t: 'Agendar no calendário', d: 'Distribua suas tarefas pelo dia. Seja realista com o tempo disponível.' },
+  { icon: 'ti-target', t: 'Definir 3 prioridades', d: 'Quais as 3 tarefas que farão este dia valer a pena?' },
+];
+const shutSteps = [
+  { icon: 'ti-check', t: 'O que você completou?', d: 'Revise as tarefas concluídas hoje.' },
+  { icon: 'ti-arrow-right', t: 'O que não foi feito?', d: 'Para amanhã, backlog, ou eliminar?' },
+  { icon: 'ti-star', t: 'Avalie seu dia', d: 'Como foi sua energia e foco hoje?' },
+  { icon: 'ti-moon', t: 'Fechar o trabalho', d: 'Feche abas, salve o que precisa, desconecte com intenção.' },
+];
+
+function openRitual(type) {
+  ritualType = type; checkedSteps = []; rating = 0;
+  document.getElementById('ritualOverlay').classList.remove('hidden');
+  document.getElementById('ritualTitle').textContent = type === 'plan' ? '☀️ Ritual de planejamento' : '🌙 Encerramento do dia';
+  document.getElementById('ritualSub').textContent = type === 'plan'
+    ? 'Um ritual guiado para começar o dia com foco e intenção.'
+    : 'Feche o dia com reflexão e prepare o amanhã.';
+  buildRitual();
+}
+
+function buildRitual() {
+  const steps = ritualType === 'plan' ? planSteps : shutSteps;
+  document.getElementById('ritualProg').innerHTML =
+    steps.map((_, i) => `<div class="pd${checkedSteps.includes(i) ? ' done' : ''}"></div>`).join('');
+  const body = document.getElementById('ritualBody');
+  if (ritualType === 'shutdown' && checkedSteps.includes(2)) {
+    body.innerHTML = `
+      <div class="refl">
+        <div class="rq">Como você avalia seu foco e energia hoje?</div>
+        <div class="stars">${['😩','😕','😐','🙂','🤩'].map((e, i) =>
+          `<span class="star${rating === i + 1 ? ' active' : ''}" onclick="setRating(${i + 1})">${e}</span>`).join('')}</div>
+      </div>
+      <div class="refl">
+        <div class="rq">O que funcionou bem hoje?</div>
+        <textarea class="dta" style="margin-top:4px" placeholder="Ex: foco no período da manhã..."></textarea>
+      </div>
+      <div class="refl">
+        <div class="rq">O que você faria diferente?</div>
+        <textarea class="dta" style="margin-top:4px" placeholder="Ex: evitar reuniões à tarde..."></textarea>
+      </div>`;
+    return;
+  }
+  body.innerHTML = steps.map((s, i) => `
+    <div class="rst${checkedSteps.includes(i) ? ' active' : ''}" onclick="toggleStep(${i})">
+      <div class="rsi"><i class="ti ${s.icon}"></i></div>
+      <div class="rsc"><div class="rst-t">${s.t}</div><div class="rst-d">${s.d}</div></div>
+      <div class="rst-ck${checkedSteps.includes(i) ? ' done' : ''}">${checkedSteps.includes(i) ? '✓' : ''}</div>
+    </div>`).join('');
+}
+
+function toggleStep(i) {
+  if (checkedSteps.includes(i)) checkedSteps = checkedSteps.filter(x => x !== i);
+  else checkedSteps.push(i);
+  buildRitual();
+}
+function setRating(r) { rating = r; buildRitual(); }
+function closeRitual() { document.getElementById('ritualOverlay').classList.add('hidden'); }
+
+// ── REFRESH ────────────────────────────────────────────────────────
+function refresh() {
+  buildSidebar();
+  buildTaskPanel();
+  buildCalendar();
+}
+
+// ── INIT ───────────────────────────────────────────────────────────
+loadData();
+</script>
+</body>
+</html>
